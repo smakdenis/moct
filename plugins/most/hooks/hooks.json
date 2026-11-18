@@ -1,0 +1,30 @@
+{
+  "description": "Recognizes prompt and continuation requests; stores a minimal per-chat model handoff marker. No network, transcript access, or model switching.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/scripts/prompt_trigger.py\"",
+            "timeout": 5,
+            "additionalContextLimit": 1400,
+            "statusMessage": "Проверяю запрос на создание промпта"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/scripts/prompt_trigger.py\"",
+            "timeout": 5,
+            "statusMessage": "Проверяю передачу промпта"
+          }
+        ]
+      }
+    ]
+  }
+}

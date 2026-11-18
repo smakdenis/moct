@@ -1,0 +1,12 @@
+{
+  "name": "most",
+  "interface": {"displayName": "МОСТ"},
+  "plugins": [
+    {
+      "name": "most",
+      "source": {"source": "local", "path": "./plugins/most"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
+    }
+  ]
+}
