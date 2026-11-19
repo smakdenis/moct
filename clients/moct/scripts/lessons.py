@@ -9,10 +9,11 @@ import os
 from pathlib import Path
 import sqlite3
 import sys
+import tempfile
 
 
 SCOPES = ("code", "data", "general", "interface", "other", "visual", "writing")
-TABLE = "most_lessons"
+TABLE = "moct_lessons"
 MAX_FIELD = 240
 
 
@@ -37,10 +38,10 @@ def save(path, scope, note):
         pass
     with closing(sqlite3.connect(path)) as db, db:
         db.execute("BEGIN IMMEDIATE")
-        db.execute("""CREATE TABLE IF NOT EXISTS most_lessons (
+        db.execute("""CREATE TABLE IF NOT EXISTS moct_lessons (
             id TEXT PRIMARY KEY, scope TEXT NOT NULL, applies TEXT NOT NULL, criterion TEXT NOT NULL
         )""")
-        db.execute("INSERT INTO most_lessons VALUES (?, ?, ?, ?) ON CONFLICT(id) DO NOTHING",
+        db.execute("INSERT INTO moct_lessons VALUES (?, ?, ?, ?) ON CONFLICT(id) DO NOTHING",
                    (key, scope, when, check))
     return {"id": key, "scope": scope, "when": when, "check": check}
 
@@ -56,7 +57,7 @@ def list_notes(path, scope=None):
     with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
         if not has_table(db):
             return []
-        query = 'SELECT id, scope, applies AS "when", criterion AS "check" FROM most_lessons'
+        query = 'SELECT id, scope, applies AS "when", criterion AS "check" FROM moct_lessons'
         args = ()
         if scope is not None:
             query += " WHERE scope IN (?, 'general')"
@@ -69,18 +70,44 @@ def forget(path, key):
     if not path.exists():
         return False
     with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=rw", uri=True)) as db, db:
-        return has_table(db) and db.execute("DELETE FROM most_lessons WHERE id = ?", (key,)).rowcount == 1
+        return has_table(db) and db.execute("DELETE FROM moct_lessons WHERE id = ?", (key,)).rowcount == 1
+
+
+def default_db(home=None):
+    home = Path.home() if home is None else Path(home)
+    path = home / ".moct" / "lessons.sqlite3"
+    legacy = home / ".most" / "lessons.sqlite3"
+    if path.exists() or not legacy.is_file():
+        return path
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd, filename = tempfile.mkstemp(prefix=".migration-", dir=path.parent)
+    os.close(fd)
+    temporary = Path(filename)
+    try:
+        with closing(sqlite3.connect(legacy.resolve().as_uri() + "?mode=ro", uri=True)) as source:
+            with closing(sqlite3.connect(temporary)) as destination, destination:
+                source.backup(destination)
+                if destination.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='most_lessons'").fetchone():
+                    destination.execute("ALTER TABLE most_lessons RENAME TO moct_lessons")
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            pass
+    finally:
+        temporary.unlink(missing_ok=True)
+    return path
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db", type=Path, default=Path.home() / ".most" / "lessons.sqlite3")
+    parser.add_argument("--db", type=Path)
     actions = parser.add_subparsers(dest="action", required=True)
     actions.add_parser("list").add_argument("--scope", choices=SCOPES)
     actions.add_parser("save").add_argument("--scope", required=True, choices=SCOPES)
     actions.add_parser("forget").add_argument("id")
     args = parser.parse_args()
     try:
+        args.db = args.db if args.db is not None else default_db()
         if args.action == "save":
             raw = sys.stdin.buffer.read(4097)
             if len(raw) > 4096:
@@ -91,7 +118,7 @@ def main():
         else:
             result = {"removed": forget(args.db, args.id)}
     except (OSError, ValueError, sqlite3.Error, RecursionError) as exc:
-        parser.exit(1, f"МОСТ: {exc}\n")
+        parser.exit(1, f"moct: {exc}\n")
     print(json.dumps(result, ensure_ascii=False))
 
 

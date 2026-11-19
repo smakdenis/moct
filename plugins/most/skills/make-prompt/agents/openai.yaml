@@ -1,6 +1,0 @@
-interface:
-  display_name: "МОСТ"
-  short_description: "Переносимый промпт, выбор модели и разбор результата"
-  default_prompt: "Используй $most:make-prompt: создай выразительный замысел и точный промпт, порекомендуй модель для реализации и остановись. Задача: "
-policy:
-  allow_implicit_invocation: true

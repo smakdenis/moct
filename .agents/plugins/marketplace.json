@@ -1,10 +1,10 @@
 {
-  "name": "most",
-  "interface": {"displayName": "МОСТ"},
+  "name": "moct",
+  "interface": {"displayName": "moct"},
   "plugins": [
     {
-      "name": "most",
-      "source": {"source": "local", "path": "./plugins/most"},
+      "name": "moct",
+      "source": {"source": "local", "path": "./plugins/moct"},
       "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
       "category": "Productivity"
     }

@@ -14,7 +14,7 @@ import unicodedata
 
 
 MAX_INPUT_BYTES = 262144
-SKILL = Path(__file__).resolve().parents[1] / "skills" / "make-prompt" / "SKILL.md"
+SKILL = Path(__file__).resolve().parents[1] / "skills" / "moct" / "SKILL.md"
 START = r"(?:^|[.!?;:\n])\s*(?:[-*]\s*)?"
 PREFIX = (
     r"(?:(?:пожалуйста[,\s]+|давай\s+|мне\s+|нам\s+|нужно\s+|надо\s+|"
@@ -47,7 +47,7 @@ EN_REQUEST = re.compile(
     re.I,
 )
 EXPLICIT = re.compile(
-    START + r"(?:используй\s+|use\s+)?\$(?:most:)?make-prompt(?=\s|[,:]|$)",
+    START + r"(?:используй\s+|use\s+)?\$(?:moct:)?moct(?=\s|[,:]|$)",
     re.I,
 )
 CONTINUE = re.compile(
@@ -219,7 +219,7 @@ def hook(payload, data_dir=None, now=None):
         is_prompt_answer = bool(re.search(r"промп?т|\bprompt\b", final, re.I))
         if is_prompt_answer and not has_handoff(final):
             return {"decision": "block", "reason": (
-                "МОСТ: если готовый промпт уже создан, выдай его полностью "
+                "moct: если готовый промпт уже создан, выдай его полностью "
                 "в финальном ответе, кратко порекомендуй доступную модель и попроси "
                 "переключить весь чат и написать «продолжай». Для внешнего исполнителя "
                 "укажи, куда вставить блок и какие вложения перенести. После этого остановись. "
@@ -244,12 +244,12 @@ def hook(payload, data_dir=None, now=None):
         override = bool(OVERRIDE.search(request_text(prompt)))
         if not override and (active_model == "unknown" or pending["author_model"] == "unknown"):
             return {"decision": "block", "reason": (
-                "МОСТ: не удалось проверить модель чата. Переключите чат на "
+                "moct: не удалось проверить модель чата. Переключите чат на "
                 "рекомендованную модель и напишите «продолжай в выбранной модели». "
                 "Это подтверждение применится только к текущей передаче.")}
         if not override and active_model == pending["author_model"]:
             return {"decision": "block", "reason": (
-                "МОСТ: по-прежнему выбрана модель, создававшая промпт. "
+                "moct: по-прежнему выбрана модель, создававшая промпт. "
                 "Переключите модель всего чата на рекомендованного исполнителя и напишите "
                 "«продолжай». Если вы намеренно хотите выполнить работу в той же модели, "
                 "напишите «продолжай в текущей модели».")}
@@ -265,7 +265,7 @@ def hook(payload, data_dir=None, now=None):
     # Only fixed, plugin-owned guidance and a validated model ID enter context.
     # Never include the prompt, cwd, transcript, session ID, or other payload strings.
     context = (
-        "МОСТ: this may be a prompt-authoring request or its continuation. "
+        "moct: this may be a prompt-authoring request or its continuation. "
         "Confirm that intent from the user's actual message; quoted examples, discussion, "
         "negation, and requests to execute an existing prompt are not prompt-authoring. "
         f"For prompt-authoring or continuation after its handoff, read the skill at {SKILL}. "

@@ -10,13 +10,13 @@ from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PLUGIN = ROOT / "plugins" / "most"
+PLUGIN = ROOT / "plugins" / "moct"
 SCRIPT = PLUGIN / "scripts" / "prompt_trigger.py"
 spec = importlib.util.spec_from_file_location("prompt_trigger", SCRIPT)
 trigger = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(trigger)
 catalog_spec = importlib.util.spec_from_file_location(
-    "model_catalog", PLUGIN / "skills/make-prompt/scripts/model_catalog.py")
+    "model_catalog", PLUGIN / "skills/moct/scripts/model_catalog.py")
 catalog = importlib.util.module_from_spec(catalog_spec)
 catalog_spec.loader.exec_module(catalog)
 
@@ -37,8 +37,8 @@ class PromptTriggerTests(unittest.TestCase):
             "Сделай промпт\nНе меняй стек проекта.",
             "Сделай промпт и сразу реализуй его",  # Skill preserves both requests.
             "Прочитай описание.\n- Подготовь технический промпт.",
-            "$make-prompt задача: лендинг", "$most:make-prompt сделай лендинг",
-            "Используй $make-prompt: лендинг", "Use $make-prompt: a portfolio",
+            "$moct задача: лендинг", "$moct:moct сделай лендинг",
+            "Используй $moct: лендинг", "Use $moct: a portfolio",
             "Write a prompt for the app", "Please create a detailed prompt",
             "Could you rewrite this prompt?", "Refine my prompt",
         ]
@@ -60,8 +60,8 @@ class PromptTriggerTests(unittest.TestCase):
             "> сделай промпт\nОбъясни эту цитату.",
             "```text\nСделай промпт\n```\nЭто пример команды.",
             "~~~text\nСделай промпт\n~~~", "```\nСделай промпт",
-            'Документация: "$make-prompt"', "Do not write a prompt",
-            "Не используй $make-prompt", "Объясни $make-prompt",
+            'Документация: "$moct"', "Do not write a prompt",
+            "Не используй $moct", "Объясни $moct",
             "How do I write a prompt?", "Make a prompt_handler function",
             "создай промптер", "сделай промптогенератор", "", None, 1, [],
         ]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the MOST skill into the selected client's own discovery directory."""
+"""Install the moct skill into the selected client's own discovery directory."""
 
 import argparse
 import os
@@ -9,11 +9,11 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parent
-CORE = ROOT / "plugins/most/skills/make-prompt"
+CORE = ROOT / "plugins/moct/skills/moct"
 CLIENTS = {"deepseek": ("DSH_HOME", ".dsh"), "kimi": ("KIMI_CODE_HOME", ".kimi-code")}
 FILES = {
-    "SKILL.md": ROOT / "clients/most/SKILL.md",
-    "references/MOST.md": CORE / "references/MOST.md",
+    "SKILL.md": ROOT / "clients/moct/SKILL.md",
+    "references/moct.md": CORE / "references/moct.md",
     "references/implementation-handoff.md": CORE / "references/implementation-handoff.md",
     "scripts/lessons.py": CORE / "scripts/lessons.py",
 }
@@ -30,12 +30,12 @@ def install(target, project=None):
             raise NotADirectoryError(project)
         client_root = project / subdir
     skills = client_root / "skills"
-    dest = skills / "most"
+    dest = skills / "moct"
     contents = {name: source.read_bytes() for name, source in FILES.items()}
     skills.mkdir(parents=True, exist_ok=True)
     if not dest.exists() and not dest.is_symlink():
-        with tempfile.TemporaryDirectory(prefix=".most-install-", dir=skills) as stage:
-            bundle = Path(stage) / "most"
+        with tempfile.TemporaryDirectory(prefix=".moct-install-", dir=skills) as stage:
+            bundle = Path(stage) / "moct"
             for name, data in contents.items():
                 path = bundle / name
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -63,7 +63,7 @@ def main():
     try:
         path, status = install(args.target, args.project)
     except OSError as exc:
-        print(f"МОСТ: {exc}", file=sys.stderr)
+        print(f"moct: {exc}", file=sys.stderr)
         return 1
     print(f"{args.target}: {status} — {path}")
     return 0
