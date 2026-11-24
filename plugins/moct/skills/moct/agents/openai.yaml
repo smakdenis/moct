@@ -1,6 +1,6 @@
 interface:
   display_name: "moct"
   short_description: "Точный промпт и передача / Precise prompts and handoff"
-  default_prompt: "Используй $moct:moct: создай выразительный замысел и точный промпт, порекомендуй модель для реализации и остановись. Задача: "
+  default_prompt: "Используй $moct:moct. Создай выразительный замысел и развёрнутый промпт с примерами и проверками, порекомендуй модель и остановись. Моя задача — "
 policy:
   allow_implicit_invocation: true

@@ -30,8 +30,10 @@ class ClientTests(unittest.TestCase):
             self.install(target)
             installed = self.project / folder / "skills/moct"
             self.assertTrue((installed / "SKILL.md").is_file())
+            self.assertEqual((installed / "SKILL.md").read_bytes(), (ROOT / "clients/moct/SKILL.md").read_bytes())
             for resource in ("references/moct.md", "references/implementation-handoff.md", "scripts/lessons.py"):
                 self.assertEqual((installed / resource).read_bytes(), (CORE / resource).read_bytes())
+                self.assertEqual((ROOT / "clients/moct" / resource).read_bytes(), (CORE / resource).read_bytes())
             self.assertIn("already installed", self.install(target).stdout)
         self.assertFalse((self.project / ".agents").exists())
 

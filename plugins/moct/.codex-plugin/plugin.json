@@ -1,7 +1,7 @@
 {
   "name": "moct",
-  "version": "1.3.0",
-  "description": "Создаёт выразительную идею и точный промпт, рекомендует исполнителя и делает паузу для смены модели. / Develops a creative concept and a precise prompt, recommends an executor, and pauses for you to switch models.",
+  "version": "1.4.0",
+  "description": "Превращает замысел в развёрнутый промпт с примерами и критериями приёмки, рекомендует исполнителя и делает паузу для смены модели. / Turns an idea into a detailed prompt with worked examples and acceptance checks, recommends an executor, and pauses for you to switch models.",
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json",
   "interface": {

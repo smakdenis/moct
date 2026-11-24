@@ -12,6 +12,8 @@
 4. Switch the entire chat to the recommended model and say **“continue”**. To work in another supported app, paste the complete task block into a new chat and attach the listed materials.
 5. The executor performs the task and checks the result against the acceptance criteria.
 
+Even a one-line request gets a detailed brief. The author aims for **8,000–12,000 non-whitespace characters** in the copyable prompt, with a default floor of **6,000**. It uses that space for creative decisions, execution steps, worked examples and observable checks. Revisions return the full updated prompt. Asking for a three-word slogan keeps the brief detailed. Asking for the prompt itself to fit 500 characters overrides the default. “Prompt only” omits the model recommendation.
+
 The authoring model consumes its own allowance. Implementation and verification consume the allowance of the model selected for those steps. Check the chat's model selector before continuing. If the recommended model is already selected, explicitly say **“continue in the current model”**.
 
 ## Install
@@ -70,6 +72,8 @@ Use `/model` to change the session's model. With the installed Kimi Code version
 
 The installer respects `DSH_HOME` and `KIMI_CODE_HOME`. Default locations are `~/.dsh/skills/moct` and `~/.kimi-code/skills/moct`. Add `--project /path/to/project` for a project-local installation. An identical installation can be retried. Conflicting content produces an error naming the destination, allowing you to inspect it.
 
+To update an older Harness or Kimi installation, move its `skills/moct` folder to a backup location outside `skills/`, run the installer for that client again, and open a new session.
+
 For the regular Kimi chat app, paste the self-contained task block and attach its materials. The native `/skill:moct` command belongs to Kimi Code.
 
 ## Learn from completed work
@@ -88,7 +92,7 @@ The profile stores only the short text explicitly approved for saving. Its conte
 
 Model selection is manual. In Codex, a trusted hook can block a recognized continuation in the author's model before another model turn begins. The guard depends on a saved marker in the same chat, recognized wording, and a verified model ID. It expires after seven days, and an unrelated message clears it. When writing is unavailable or hooks are skipped, check the selector yourself.
 
-In Harness and Kimi, the pause is an instruction to the author. A request specifically for the prompt first gives the moct predictable handoff. Generation quality and instruction following vary by model. Unknown account pricing is reported as unknown.
+A trusted Codex hook can request one correction when an ordinary handoff is missing or the copyable block falls below the default floor. Harness and Kimi apply the same depth and handoff instructions through the authoring model. Generation quality and instruction following vary by model. Unknown account pricing is reported as unknown.
 
 The plugin refreshes model evidence when preparing a prompt. Future model releases are considered through the current client's catalog and available official information. Scheduled release monitoring is configured separately in the user's host application.
 
@@ -99,7 +103,7 @@ python3 -B -m unittest discover -s tests -v
 bash -n install.command
 ```
 
-The package has 35 tests covering request recognition, model handoffs, catalog freshness, client installation, concurrent retries, and lesson save/read/delete behavior. Native discovery was checked with Codex, DeepSeek Harness 0.2.2-rc.3, and Kimi Code 2.3.3 on macOS. A live Codex prompt-generation test stopped before implementation. Harness discovery and Kimi's local transport were checked separately from their remote models' output quality. See [verification notes](VERIFICATION.md).
+The tests cover the copyable prompt's length, explicit limits, a final answer replaced by a status message, model handoffs, catalog freshness, client installation, concurrent retries and saved lessons. Native discovery was checked with Codex, DeepSeek Harness 0.2.2-rc.3, and Kimi Code 2.3.3 on macOS. The verification notes record the live authoring results and which client paths were exercised. [Verification notes](VERIFICATION.md)
 
 ## Upgrade from most
 

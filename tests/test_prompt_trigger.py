@@ -1,3 +1,4 @@
+import concurrent.futures
 import importlib.util
 import json
 from datetime import datetime, timezone
@@ -41,6 +42,8 @@ class PromptTriggerTests(unittest.TestCase):
             "Используй $moct: лендинг", "Use $moct: a portfolio",
             "Write a prompt for the app", "Please create a detailed prompt",
             "Could you rewrite this prompt?", "Refine my prompt",
+            "Сделай большой и развёрнутый промпт", "Составь короткий промпт",
+            "Write a concise prompt for an image", "Write a 200-word prompt",
         ]
         for text in requests:
             with self.subTest(text=text):
@@ -137,6 +140,12 @@ class HandoffGuardTests(unittest.TestCase):
         self.clock = 1000000
         self.base = {"hook_event_name": "UserPromptSubmit", "session_id": "chat-one",
                      "model": "gpt-6.2-astra", "permission_mode": "default"}
+        self.advice = "Переключите чат на Terra и напишите «продолжай»."
+        self.full_body = "шаг " * (trigger.MIN_PROMPT_CHARS // 3)
+
+    def stop(self, message, **changes):
+        return trigger.hook({**self.base, "hook_event_name": "Stop",
+                             "last_assistant_message": message, **changes}, self.root, self.clock)
 
     def event(self, prompt, **changes):
         return trigger.hook({**self.base, "prompt": prompt, **changes},
@@ -151,7 +160,7 @@ class HandoffGuardTests(unittest.TestCase):
         files = list((Path(self.root) / "handoffs").glob("*.json"))
         self.assertEqual(len(files), 1)
         value = json.loads(files[0].read_text())
-        self.assertEqual(set(value), {"version", "author_model", "created_at", "only_prompt"})
+        self.assertEqual(set(value), {"version", "author_model", "created_at", "only_prompt", "default_depth"})
         self.assertNotIn("витрины", files[0].read_text())
         self.assertNotIn("chat-one", files[0].name)
 
@@ -220,7 +229,7 @@ class HandoffGuardTests(unittest.TestCase):
     def test_stop_accepts_handoff_and_does_not_block_question_or_structured_format(self):
         self.event("Сделай промпт")
         payload = {**self.base, "hook_event_name": "Stop", "stop_hook_active": False}
-        for message in ("Готовый промпт: ... Переключите чат на Terra и напишите «продолжай».",
+        for message in (f"```text\n{self.full_body}\n```\n{self.advice}",
                         "Для промпта уточните, кто аудитория?", '{"implementation_prompt":"text"}'):
             with self.subTest(message=message):
                 self.assertEqual(trigger.hook({**payload, "last_assistant_message": message},
@@ -228,25 +237,96 @@ class HandoffGuardTests(unittest.TestCase):
 
     def test_stop_preserves_explicit_prompt_only_format(self):
         self.event("Сделай только промпт")
-        payload = {**self.base, "hook_event_name": "Stop", "stop_hook_active": False,
-                   "last_assistant_message": "Готовый промпт: создай файл."}
-        self.assertEqual(trigger.hook(payload, data_dir=self.root, now=self.clock), {})
+        for message in (self.full_body, f"```text\n{self.full_body}\n```"):
+            self.assertEqual(self.stop(message), {})
+        short = self.stop("Создай файл.")
+        self.assertEqual(short.get("decision"), "block")
+        self.assertNotIn("порекомендуй", short["reason"].lower())
+        self.event("Сделай только промпт, сам промпт до 200 знаков")
+        self.assertEqual(self.stop("Создай файл."), {})
 
     def test_external_chat_and_explicit_current_model_are_valid_next_steps(self):
         self.event("Сделай промпт")
         for ending in ("Откройте новый чат Kimi и вставьте блок задания.",
                        "Для продолжения напишите «продолжай в текущей модели»."):
             result = trigger.hook({**self.base, "hook_event_name": "Stop",
-                                   "last_assistant_message": "Промпт готов. " + ending},
+                                   "last_assistant_message": f"```text\n{self.full_body}\n```\n{ending}"},
                                   self.root, self.clock)
             self.assertEqual(result, {})
 
     def test_advice_inside_the_executor_prompt_does_not_count_as_author_handoff(self):
         self.event("Сделай промпт")
-        message = "[Материалы](file.txt)\nГотовый промпт\n```text\nПереключите чат и продолжайте.\n```"
+        message = f"[Материалы](file.txt)\nГотовый промпт\n```text\n{self.full_body}\n{self.advice}\n```"
         reply = trigger.hook({**self.base, "hook_event_name": "Stop",
                               "last_assistant_message": message}, self.root, self.clock)
         self.assertEqual(reply.get("decision"), "block")
+
+    def test_only_the_copyable_prompt_counts_towards_the_floor(self):
+        for message in (
+                "Создай афишу для читательского клуба.",
+                "```text\nСоздай афишу.\n```\nПереключить чат и продолжить?",
+                f"Готовый промпт. Сделай афишу. {self.advice}",
+                f"{self.full_body}\n```text\nСделай афишу.\n```\n{self.advice}",
+                f"```text\nшаг{' ' * trigger.MIN_PROMPT_CHARS}\n```\n{self.advice}",
+                f"\n> {self.full_body}\n{self.advice}",
+                f"```text\n{self.full_body}\n```\n```text\nещё\n```\n{self.advice}"):
+            with self.subTest(prefix=message[:40]):
+                self.event("Сделай промпт для афиши")
+                self.assertEqual(self.stop(message).get("decision"), "block")
+                self.assertEqual(self.stop(message, stop_hook_active=True), {})
+
+    def test_another_hooks_continuation_cannot_replace_the_prompt_with_a_receipt(self):
+        self.event("Сделай промпт для афиши")
+        full = f"```text\n{self.full_body}\n```\n{self.advice}"
+        self.assertEqual(self.stop(full), {})
+        stub = "Промпт выдан выше. Проверка сохранена."
+        self.assertEqual(self.stop("Готово. Проверка сохранена.", stop_hook_active=True).get("decision"), "block")
+        self.assertEqual(self.stop(full, stop_hook_active=True), {})
+        self.assertEqual(self.stop(stub), {})
+        self.assertEqual(self.event("Продолжай").get("decision"), "block")
+        self.assertNotIn("decision", self.event("Продолжай", model="gpt-6.2-sol"))
+        self.assertEqual(list((Path(self.root) / "handoffs").iterdir()), [])
+
+    def test_concurrent_stop_callbacks_share_one_retry_and_a_new_prompt_gets_its_own(self):
+        stub = "Промпт выше."
+        self.event("Сделай промпт")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            replies = list(pool.map(self.stop, [stub, stub]))
+        self.assertEqual(sum(reply.get("decision") == "block" for reply in replies), 1)
+        self.event("Доработай промпт")
+        self.assertEqual(self.stop(stub).get("decision"), "block")
+
+    def test_full_nested_example_and_unclosed_block(self):
+        self.event("Доработай промпт")
+        content = f"````text\n{self.full_body}\n```json\n{{}}\n```"
+        self.assertEqual(self.stop(f"{content}\n````\n{self.advice}"), {})
+        self.assertEqual(self.stop(f"Промпт\n{content}\n{self.advice}").get("decision"), "block")
+        self.assertEqual(self.stop(f"~~~text\n{self.full_body}\n~~~\n{self.advice}"), {})
+
+    def test_explicit_limits_only_change_the_prompt_they_describe(self):
+        answer = f"```text\nПридумай слоган.\n```\n{self.advice}"
+        for prompt in ("Сделай короткий промпт", "Напиши промпт на 100 слов",
+                       "Сделай промпт. Сам промпт умести в 150 знаков.",
+                       "Write a 200-word prompt", "Create a prompt under 500 characters"):
+            with self.subTest(prompt=prompt):
+                self.event(prompt)
+                self.assertEqual(self.stop(answer), {})
+        for prompt in ("Сделай промпт для короткого письма", "Сделай промпт для слогана в одну строку",
+                       "Напиши промпт. Пример цитаты: «короткий промпт».",
+                       "Write a prompt for a 200-word letter", "Доработай промпт"):
+            with self.subTest(prompt=prompt):
+                self.event(prompt)
+                self.assertEqual(self.stop(answer).get("decision"), "block")
+
+    def test_marker_from_previous_version_can_complete_handoff(self):
+        self.event("Сделай промпт")
+        path, = (Path(self.root) / "handoffs").glob("*.json")
+        marker = json.loads(path.read_text())
+        del marker["default_depth"]
+        path.write_text(json.dumps(marker))
+        self.assertEqual(self.stop("Готовый промпт. " + self.advice), {})
+        self.assertEqual(self.event("Продолжай").get("decision"), "block")
+        self.assertNotIn("decision", self.event("Продолжай", model="gpt-6.2-sol"))
 
 
 class PackageTests(unittest.TestCase):
